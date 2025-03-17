@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Todo List Application</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header>
+      <h1>Todo List Application</h1>
+      <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+      <a
+        href="{{ url_for('logout') }}"
+        style="position: absolute; right: 80px; top: 20px; color: white"
+        >Logout</a
+      >
+    </header>
+
+    <div class="container">
+      <div class="todo-list">
+        <h2>Tasks</h2>
+        <div class="task-progress">
+          <div class="progress-bar">
+            <span id="progressBar"></span>
+          </div>
+        </div>
+
+        <div class="task-filters">
+          <input
+            type="text"
+            id="searchBar"
+            placeholder="Search tasks..."
+            onkeyup="searchTasks()"
+          />
+          <select id="sortTasks" onchange="sortTasks()">
+            <option value="default">Sort by</option>
+            <!-- <option value="name">Name</option>
+            <option value="dueDate">Due Date</option>
+            <option value="priority">Priority</option>
+            <option value="category">Category</option> -->
+          </select>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" class="task-input">
+          <input
+            type="text"
+            name="task_name"
+            placeholder="Task Name"
+            required
+          />
+          <input type="date" name="due_date" required />
+          <select name="priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <select name="category">
+            <option value="work">Work</option>
+            <option value="personal">Personal</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="file" name="file" />
+          <button type="submit">Add Task</button>
+        </form>
+
+        <ul class="task-list" id="taskList">
+          {% for task in tasks %}
+          <li class="{% if task.completed %}completed{% endif %}">
+            <div class="task-content">
+              <input
+                type="checkbox"
+                onchange="toggleTaskCompletion(this, '{{ task.name }}')"
+                {%
+                if
+                task.completed
+                %}checked{%
+                endif
+                %}
+              />
+              <span style="color: black;"
+                >{{ task.name }} | Due: {{ task.due_date }} | Priority: {{
+                task.priority }} | Category: {{ task.category }}</span
+              >
+              {% if task.file %}
+              <a href="/uploads/{{ task.file }}" download="{{ task.file }}"><i class="fas fa-paperclip"></i> {{ task.file }}</a>
+              {% endif %}
+            </div>
+            <div class="task-actions">
+              <button onclick="deleteTask(this, '{{ task.name }}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="sticky-notes">
+        <h2>Sticky Notes</h2>
+        <div class="sticky-notes-header">
+          <input
+            type="text"
+            id="searchStickyNotes"
+            placeholder="Search notes..."
+            onkeyup="searchStickyNotes()"
+          />
+        </div>
+        <button onclick="addStickyNote()" class="add-btn">
+          Add Sticky Note
+        </button>
+
+        <div class="sticky-notes-container" id="stickyNotesContainer">
+          {% for note in sticky_notes %}
+          <div class="sticky-note {{ note.color }}" data-id="{{ note.id }}">
+            <textarea class="note-content" onchange="updateStickyNote('{{ note.id }}', this.value, '{{ note.color }}')">{{ note.content }}</textarea>
+            <button class="delete-btn" onclick="deleteStickyNote('{{ note.id }}')">
+              <i class="fas fa-trash"></i>
+            </button>
+            <div class="note-footer">
+              <select class="color-select" onchange="updateStickyNote('{{ note.id }}', this.parentElement.parentElement.querySelector('.note-content').value, this.value)">
+                <option value="yellow" {% if note.color == 'yellow' %}selected{% endif %}>Yellow</option>
+                <option value="orange" {% if note.color == 'orange' %}selected{% endif %}>Orange</option>
+                <option value="green" {% if note.color == 'green' %}selected{% endif %}>Green</option>
+                <option value="blue" {% if note.color == 'blue' %}selected{% endif %}>Blue</option>
+                <option value="red" {% if note.color == 'red' %}selected{% endif %}>Red</option>
+              </select>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function toggleTheme() {
+        document.body.classList.toggle("dark-mode");
+        const themeToggle = document.querySelector(".theme-toggle");
+        themeToggle.textContent = document.body.classList.contains("dark-mode")
+          ? "☀️"
+          : "🌙";
+      }
+
+      function updateProgress() {
+        const tasks = document.querySelectorAll(".task-list li");
+        const completedTasks = document.querySelectorAll(
+          ".task-list li.completed"
+        );
+        const progress = tasks.length
+          ? (completedTasks.length / tasks.length) * 100
+          : 0;
+        document.getElementById("progressBar").style.width = progress + "%";
+      }
+
+      function toggleTaskCompletion(checkbox, taskName) {
+        const li = checkbox.closest("li");
+        li.classList.toggle("completed");
+        updateProgress();
+        // Here you would typically make an AJAX call to update the server
+      }
+
+      function deleteTask(button, taskName) {
+        const li = button.closest("li");
+        li.remove();
+        updateProgress();
+        // Here you would typically make an AJAX call to update the server
+      }
+
+      function searchTasks() {
+        const searchText = document
+          .getElementById("searchBar")
+          .value.toLowerCase();
+        const tasks = document.querySelectorAll(".task-list li");
+        tasks.forEach((task) => {
+          const taskName = task.querySelector("span").textContent.split("|")[0].toLowerCase().trim();
+          task.style.display = taskName.includes(searchText) ? "" : "none";
+        });
+      }
+
+      function sortTasks() {
+        const sortBy = document.getElementById("sortTasks").value;
+        const taskList = document.getElementById("taskList");
+        const tasks = Array.from(taskList.children);
+
+        tasks.sort((a, b) => {
+          const aText = a.querySelector("span").textContent;
+          const bText = b.querySelector("span").textContent;
+          return aText.localeCompare(bText);
+        });
+
+        taskList.innerHTML = "";
+        tasks.forEach((task) => taskList.appendChild(task));
+      }
+
+      function addStickyNote() {
+        const container = document.getElementById("stickyNotesContainer");
+        const id = Date.now().toString();
+        const note = document.createElement("div");
+        note.className = "sticky-note yellow";
+        note.setAttribute("data-id", id);
+
+        note.innerHTML = `
+          <textarea name="sticky_note" class="note-content" placeholder="Write a note..." onchange="updateStickyNote('${id}', this.value, 'yellow')"></textarea>
+          <button class="delete-btn" onclick="deleteStickyNote('${id}')"><i class="fas fa-trash"></i></button>
+          <div class="note-footer">
+            <select class="color-select" onchange="updateStickyNote('${id}', this.parentElement.parentElement.querySelector('.note-content').value, this.value)">
+              <option value="yellow">Yellow</option>
+              <option value="orange">Orange</option>
+              <option value="green">Green</option>
+              <option value="blue">Blue</option>
+              <option value="red">Red</option>
+            </select>
+          </div>
+        `;
+
+        container.appendChild(note);
+
+        // Save the new note to the server
+        fetch("/sticky_note/add", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: id,
+            content: "",
+            color: "yellow",
+          }),
+        });
+      }
+
+      function updateStickyNote(id, content, color) {
+        const note = document.querySelector(`.sticky-note[data-id="${id}"]`);
+        if (note) {
+          note.className = `sticky-note ${color}`;
+
+          // Update the note on the server
+          fetch("/sticky_note/update", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: id,
+              content: content,
+              color: color,
+            }),
+          });
+        }
+      }
+
+      function deleteStickyNote(id) {
+        const note = document.querySelector(`.sticky-note[data-id="${id}"]`);
+        if (note) {
+          note.remove();
+
+          // Delete the note from the server
+          fetch("/sticky_note/delete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: id,
+            }),
+          });
+        }
+      }
+
+      function changeNoteColor(select) {
+        const note = select.closest(".sticky-note");
+        note.className = "sticky-note " + select.value;
+      }
+
+      function searchStickyNotes() {
+        const query = document
+          .getElementById("searchStickyNotes")
+          .value.toLowerCase();
+        document.querySelectorAll(".sticky-note").forEach((note) => {
+          const text = note.querySelector("textarea").value.toLowerCase();
+          note.style.display = text.includes(query) ? "inline-block" : "none";
+        });
+      }
+
+      // Initialize progress bar on page load
+      updateProgress();
+    </script>
+  </body>
+</html>
