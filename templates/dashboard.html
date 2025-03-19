@@ -167,7 +167,29 @@
         const li = checkbox.closest("li");
         li.classList.toggle("completed");
         updateProgress();
-        // Here you would typically make an AJAX call to update the server
+
+        
+        // Make API call to update the server
+        fetch(`/task/toggle/${taskName}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            // Revert the UI change if the server update failed
+            li.classList.toggle("completed");
+            updateProgress();
+          }
+        })
+        .catch(error => {
+          // Revert the UI change if there was an error
+          li.classList.toggle("completed");
+          updateProgress();
+          console.error("Error updating task status:", error);
+        });
       }
 
       function deleteTask(button, taskName) {
